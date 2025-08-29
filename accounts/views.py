@@ -5,7 +5,6 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
-from django.views.decorators.cache import never_cache
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 
@@ -171,7 +170,6 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 @swagger_auto_schema(
-    method='post',
     operation_description="Logout user (blacklist refresh token)",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
