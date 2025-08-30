@@ -1,3 +1,4 @@
+# accounts/views.py - Enhanced version with better Swagger documentation
 from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -25,10 +26,40 @@ class UserRegistrationView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Register a new user",
+        operation_id="register_user",
+        operation_description="Register a new user account with email verification",
+        operation_summary="User Registration",
+        tags=['Authentication'],
+        request_body=UserRegistrationSerializer,
         responses={
-            201: openapi.Response('User created successfully', UserProfileSerializer),
-            400: 'Validation errors'
+            201: openapi.Response(
+                description='User created successfully',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING, example='User registered successfully'),
+                        'user': openapi.Schema(type=openapi.TYPE_OBJECT),
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description='Validation errors',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'email': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=['This field is required.']
+                        ),
+                        'password': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=['This password is too short.']
+                        )
+                    }
+                )
+            )
         }
     )
     def post(self, request, *args, **kwargs):
@@ -48,20 +79,45 @@ class UserLoginView(generics.GenericAPIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Login user and get JWT tokens",
+        operation_id="login_user",
+        operation_description="Authenticate user and receive JWT tokens",
+        operation_summary="User Login",
+        tags=['Authentication'],
+        request_body=UserLoginSerializer,
         responses={
             200: openapi.Response(
-                'Login successful',
-                openapi.Schema(
+                description='Login successful',
+                schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'access': openapi.Schema(type=openapi.TYPE_STRING),
-                        'refresh': openapi.Schema(type=openapi.TYPE_STRING),
+                        'access': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='JWT access token',
+                            example='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'
+                        ),
+                        'refresh': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='JWT refresh token',
+                            example='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'
+                        ),
                         'user': openapi.Schema(type=openapi.TYPE_OBJECT),
                     }
                 )
             ),
-            400: 'Invalid credentials'
+            400: openapi.Response(
+                description='Invalid credentials',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'non_field_errors': openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(type=openapi.TYPE_STRING),
+                            example=['Invalid credentials']
+                        )
+                    }
+                )
+            ),
+            429: openapi.Response(description='Rate limit exceeded (5 attempts per minute)')
         }
     )
     def post(self, request):
@@ -83,10 +139,27 @@ class ForgotPasswordView(generics.GenericAPIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Request password reset",
+        operation_id="forgot_password",
+        operation_description="Request password reset token via email",
+        operation_summary="Forgot Password",
+        tags=['Password Reset'],
+        request_body=ForgotPasswordSerializer,
         responses={
-            200: 'Password reset email sent',
-            400: 'Invalid email or user not found'
+            200: openapi.Response(
+                description='Password reset email sent',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example='Password reset email sent successfully'
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(description='Invalid email or user not found'),
+            429: openapi.Response(description='Rate limit exceeded (3 attempts per minute)'),
+            500: openapi.Response(description='Failed to send email')
         }
     )
     def post(self, request):
@@ -119,10 +192,37 @@ class ResetPasswordView(generics.GenericAPIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
-        operation_description="Reset password using token",
+        operation_id="reset_password",
+        operation_description="Reset password using the token received via email",
+        operation_summary="Reset Password",
+        tags=['Password Reset'],
+        request_body=ResetPasswordSerializer,
         responses={
-            200: 'Password reset successful',
-            400: 'Invalid token or validation errors'
+            200: openapi.Response(
+                description='Password reset successful',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example='Password reset successfully'
+                        )
+                    }
+                )
+            ),
+            400: openapi.Response(
+                description='Invalid token or validation errors',
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'error': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            example='Invalid or expired token'
+                        )
+                    }
+                )
+            ),
+            429: openapi.Response(description='Rate limit exceeded (3 attempts per minute)')
         }
     )
     def post(self, request):
@@ -160,25 +260,138 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
 
     @swagger_auto_schema(
-        operation_description="Get user profile",
-        responses={200: UserProfileSerializer}
+        operation_id="get_user_profile",
+        operation_description="Get current user profile information",
+        operation_summary="Get User Profile",
+        tags=['User Profile'],
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="JWT token in format: Bearer <token>",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        responses={
+            200: UserProfileSerializer,
+            401: openapi.Response(description='Unauthorized - Invalid or missing token'),
+            403: openapi.Response(description='Forbidden')
+        }
     )
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_id="update_user_profile",
+        operation_description="Update current user profile information",
+        operation_summary="Update User Profile",
+        tags=['User Profile'],
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="JWT token in format: Bearer <token>",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=UserProfileSerializer,
+        responses={
+            200: UserProfileSerializer,
+            400: openapi.Response(description='Validation errors'),
+            401: openapi.Response(description='Unauthorized - Invalid or missing token'),
+            403: openapi.Response(description='Forbidden')
+        }
+    )
+    def put(self, request, *args, **kwargs):
+        return super().put(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_id="partial_update_user_profile",
+        operation_description="Partially update current user profile information",
+        operation_summary="Partial Update User Profile",
+        tags=['User Profile'],
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="JWT token in format: Bearer <token>",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
+        request_body=UserProfileSerializer,
+        responses={
+            200: UserProfileSerializer,
+            400: openapi.Response(description='Validation errors'),
+            401: openapi.Response(description='Unauthorized - Invalid or missing token'),
+            403: openapi.Response(description='Forbidden')
+        }
+    )
+    def patch(self, request, *args, **kwargs):
+        return super().patch(request, *args, **kwargs)
+
     def get_object(self):
         return self.request.user
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
 @swagger_auto_schema(
-    operation_description="Logout user (blacklist refresh token)",
+    method='post',
+    operation_id="logout_user",
+    operation_description="Logout user by blacklisting the refresh token",
+    operation_summary="User Logout",
+    tags=['Authentication'],
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="JWT token in format: Bearer <token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ],
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
+        required=['refresh'],
         properties={
-            'refresh': openapi.Schema(type=openapi.TYPE_STRING, description='Refresh token')
+            'refresh': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='Refresh token to blacklist',
+                example='eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...'
+            )
         }
     ),
-    responses={200: 'Logged out successfully'}
+    responses={
+        200: openapi.Response(
+            description='Logged out successfully',
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'message': openapi.Schema(
+                        type=openapi.TYPE_STRING,
+                        example='Logged out successfully'
+                    )
+                }
+            )
+        ),
+        400: openapi.Response(
+            description='Invalid token',
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'error': openapi.Schema(
+                        type=openapi.TYPE_STRING,
+                        example='Invalid token'
+                    )
+                }
+            )
+        ),
+        401: openapi.Response(description='Unauthorized - Invalid or missing token')
+    }
 )
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def logout_view(request):
     try:
         refresh_token = request.data.get('refresh')

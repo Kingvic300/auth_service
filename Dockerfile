@@ -1,37 +1,32 @@
-FROM ubuntu:latest
-LABEL authors="DELL USER"
+# Use official Python image as base
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Metadata
+LABEL maintainer="DELL USER"
+
+# Prevent Python from writing .pyc files & buffer issues
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
 # Set work directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update \\
-    && apt-get install -y --no-install-recommends \\
-        postgresql-client \\
-        gcc \\
-        libc6-dev \\
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy project
+# Copy project files
 COPY . .
-
-# Collect static files
-RUN python manage.py collectstatic --noinput
-
-# Run migrations
-RUN python manage.py migrate --noinput
 
 # Expose port
 EXPOSE 8000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "auth_service.wsgi:application"]
-ENTRYPOINT ["top", "-b"]
+# Run entrypoint script (we’ll create this next)
+ENTRYPOINT ["/app/entrypoint.sh"]

@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="Black">
-    <option name="sdkName" value="Pipenv (auth_service)" />
-  </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="Pipenv (auth_service)" project-jdk-type="Python SDK" />
-</project>
